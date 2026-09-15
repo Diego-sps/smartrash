@@ -1,86 +1,384 @@
 import streamlit as st
 import pandas as pd
 
-pd.DataFrame({"Gerador": ["Edificio Piazza São Pietro", "Vila Borguese", "Edificio Honduras"], "Aluminio":100 , "Plastico": 200, "Papel": 300 ,"Horário Chegada": ["08:00", "10:00", "12:00"],"Preço Estimado Material": [1000, 2000, 3000], "Quem vai trazer": ["Roberto", "Claudio", "Claudio Logistics"]})
 
-df = pd.DataFrame({"Gerador": ["Edificio Piazza São Pietro", "Vila Borguese", "Edificio Honduras"],  "Aluminio":[100,200,300] , "Plastico": [400,500,600], "Papel": [700,800,900] ,"Horário Chegada": ["08:00", "10:00", "12:00"],"Preço Estimado Material": [1000, 2000, 3000], "Quem vai trazer": ["Roberto", "Claudio", "Claudio Logistics"], "Pagamento Transportador": [200, 300, 3000], "Pagamento Gerador": [800, 2000-300, 0], "Pedido": ["1001", "1002", "1003"], "Status": ["Não Iniciado", "Iniciado", "Inspeção"]})
+# =========================================================
+# CONFIGURAÇÃO
+# =========================================================
 
-df_banco = pd.read_excel("teste_banco_recicladoras.xlsx")
+st.title("♻️ Recicladora Ousadia e Alegria")
 
-
-st.title("Recicladora Ousadia e Alegria")
-# st.header("Entregas de Hoje")
-
-## Filtros dinamicos( In progress)
-col1, col2, col3, col4 = st.columns(4)
-col1.selectbox("O que deseja Filtrar", list(df["Gerador"].unique()), key="col1")
-col2.selectbox("O que deseja Filtrar", [0,2,34,4], key="col2")
-col3.selectbox("O que deseja Filtrar", list(df["Horário Chegada"].unique()), key="col3")
+st.subheader("Propostas recebidas")
 
 
-st.header("Pedidos de Hoje")
+# =========================================================
+# PROPOSTAS SIMULADAS
+# =========================================================
 
-for index, row in df.iterrows():
+propostas = pd.DataFrame({
+    "ID": ["P001", "P002", "P003"],
+    "Gerador": [
+        "Edifício Piazza São Pietro",
+        "Vila Borguese",
+        "Edifício Honduras"
+    ],
+    "Material": [
+        "Alumínio",
+        "Papelão",
+        "Alumínio"
+    ],
+    "Quantidade": [
+        100,
+        300,
+        200
+    ],
+    "Preço/kg": [
+        3.50,
+        1.00,
+        3.90
+    ],
+    "Status": [
+        "Pendente",
+        "Pendente",
+        "Pendente"
+    ]
+})
 
-    col1, col2, col3, col4,col5 = st.columns([1, 3, 2, 1, 1])
 
-    col1.write(row["Pedido"])
-    col2.write(row["Gerador"])
-    col3.write(row["Horário Chegada"])
-    col4.write(f"Status: {row['Status']}")
+# =========================================================
+# INICIALIZAÇÃO DO ESTADO
+# =========================================================
 
-    if col5.button("Abrir", key=f"pedido_{row['Pedido']}"):
-        st.session_state["pedido_selecionado"] = row["Pedido"]
+if "propostas" not in st.session_state:
+    st.session_state["propostas"] = propostas.copy()
 
 
-if "pedido_selecionado" in st.session_state:
+if "proposta_selecionada" not in st.session_state:
+    st.session_state["proposta_selecionada"] = None
 
-    pedido = st.session_state["pedido_selecionado"]
 
-    pedido_data = df[df["Pedido"] == pedido].iloc[0]
+# =========================================================
+# LISTA DE PROPOSTAS
+# =========================================================
+
+df = st.session_state["propostas"]
+
+
+for _, proposta in df.iterrows():
+
+    if proposta["Status"] != "Pendente":
+        continue
+
+    valor_total = (
+        proposta["Quantidade"] *
+        proposta["Preço/kg"]
+    )
+
+    with st.container(border=True):
+
+        col1, col2, col3 = st.columns([3, 2, 1])
+
+        with col1:
+
+            st.subheader(
+                proposta["Gerador"]
+            )
+
+            st.write(
+                f"**Material:** {proposta['Material']}"
+            )
+
+            st.write(
+                f"**Quantidade:** "
+                f"{proposta['Quantidade']} kg"
+            )
+
+        with col2:
+
+            st.metric(
+                "Preço oferecido",
+                f"R$ {proposta['Preço/kg']:.2f}/kg"
+            )
+
+            st.metric(
+                "Valor total",
+                f"R$ {valor_total:,.2f}"
+            )
+
+        with col3:
+
+            if st.button(
+                "Abrir",
+                key=f"abrir_{proposta['ID']}"
+            ):
+
+                st.session_state[
+                    "proposta_selecionada"
+                ] = proposta["ID"]
+
+                st.rerun()
+
+
+# =========================================================
+# DETALHAMENTO DA PROPOSTA
+# =========================================================
+
+if st.session_state["proposta_selecionada"]:
+
+    proposta_id = (
+        st.session_state["proposta_selecionada"]
+    )
+
+    proposta = df[
+        df["ID"] == proposta_id
+    ].iloc[0]
 
     st.divider()
 
-    st.header(f"Pedido #{pedido}")
-    if pedido_data["Status"] == "Não Iniciado":
-        fill = "style A fill:#ff4b4b,stroke:#b30000,stroke-width:2px,color:white"
-    elif pedido_data["Status"] == "Iniciado":
-        fill = "style B fill:green,stroke-width:2px,color:white"
-    elif pedido_data["Status"] == "Entregue":
-        fill = "style C fill:green,stroke-width:2px,color:white"
-    elif pedido_data["Status"] == "Inspeção":
-        fill = "style D fill:green,stroke-width:2px,color:white"
-    elif pedido_data["Status"] == "Pagamento":
-        fill = "style E fill:green,stroke-width:2px,color:white"
+    st.header(
+        f"Proposta #{proposta['ID']}"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.write(
+            f"**Gerador:** {proposta['Gerador']}"
+        )
+
+        st.write(
+            f"**Material:** {proposta['Material']}"
+        )
+
+        st.write(
+            f"**Quantidade:** "
+            f"{proposta['Quantidade']} kg"
+        )
+
+    with col2:
+
+        st.write(
+            f"**Preço:** "
+            f"R$ {proposta['Preço/kg']:.2f}/kg"
+        )
+
+        valor_total = (
+            proposta["Quantidade"] *
+            proposta["Preço/kg"]
+        )
+
+        st.write(
+            f"**Valor total:** "
+            f"R$ {valor_total:,.2f}"
+        )
+
+    st.divider()
+
+    st.write(
+        "Deseja aceitar esta proposta?"
+    )
+
+    col1, col2 = st.columns(2)
+
+    # =====================================================
+    # RECUSAR
+    # =====================================================
+
+    with col1:
+
+        if st.button(
+            "❌ Recusar proposta",
+            use_container_width=True
+        ):
+
+            st.session_state["propostas"].loc[
+                st.session_state["propostas"]["ID"] == proposta_id,
+                "Status"
+            ] = "Recusada"
+
+            st.session_state[
+                "proposta_selecionada"
+            ] = None
+
+            st.success(
+                "Proposta recusada."
+            )
+
+            st.rerun()
+
+
+    # =====================================================
+    # ACEITAR
+    # =====================================================
+
+    with col2:
+
+        if st.button(
+            "✅ Aceitar proposta",
+            type="primary",
+            use_container_width=True
+        ):
+
+            st.session_state[
+                "proposta_aceita"
+            ] = proposta_id
+
+            st.rerun()
+
+
+# =========================================================
+# DEFINIÇÃO DA LOGÍSTICA
+# =========================================================
+
+if "proposta_aceita" in st.session_state:
+
+    proposta_id = (
+        st.session_state["proposta_aceita"]
+    )
+
+    proposta = df[
+        df["ID"] == proposta_id
+    ].iloc[0]
+
+    st.divider()
+
+    st.header("🚚 Como deseja realizar a coleta?")
+
+    st.write(
+        f"Pedido #{proposta_id} — "
+        f"{proposta['Quantidade']} kg de "
+        f"{proposta['Material']}"
+    )
+
+    opcao = st.radio(
+        "Escolha uma opção:",
+        [
+            "Vou buscar o pedido",
+            "Vou contratar um transportador",
+            "Deixar o SmarTrash encontrar o melhor transportador"
+        ]
+    )
+
+
+    # =====================================================
+    # OPÇÃO 1
+    # =====================================================
+
+    if opcao == "Vou buscar o pedido":
+
+        st.info(
+            "A recicladora será responsável "
+            "pela coleta."
+        )
+
+        if st.button(
+            "Confirmar coleta própria",
+            type="primary"
+        ):
+
+            st.session_state["propostas"].loc[
+                st.session_state["propostas"]["ID"] == proposta_id,
+                "Status"
+            ] = "Aceita"
+
+            st.session_state[
+                "logistica"
+            ] = "Coleta própria"
+
+            del st.session_state["proposta_aceita"]
+
+            st.success(
+                "Pedido aceito! "
+                "A coleta será realizada pela recicladora."
+            )
+
+            st.rerun()
+
+
+    # =====================================================
+    # OPÇÃO 2
+    # =====================================================
+
+    elif opcao == "Vou contratar um transportador":
+
+        st.info(
+            "Você poderá selecionar uma transportadora "
+            "cadastrada na plataforma."
+        )
+
+        transportador = st.selectbox(
+            "Transportador",
+            [
+                "Roberto Transportes",
+                "Claudio Logistics",
+                "EcoLog Transportes"
+            ]
+        )
+
+        if st.button(
+            "Confirmar transportador",
+            type="primary"
+        ):
+
+            st.session_state["propostas"].loc[
+                st.session_state["propostas"]["ID"] == proposta_id,
+                "Status"
+            ] = "Aceita"
+
+            st.session_state[
+                "logistica"
+            ] = transportador
+
+            del st.session_state["proposta_aceita"]
+
+            st.success(
+                f"Pedido aceito! "
+                f"Coleta delegada para {transportador}."
+            )
+
+            st.rerun()
+
+
+    # =====================================================
+    # OPÇÃO 3
+    # =====================================================
+
     else:
-        fill = "style F fill:green,stroke-width:2px,color:white"
-    st.mermaid_chart(f"""
-    graph LR
-        A[Não Iniciado] --> B[Iniciado]
-        B --> C[Entregue]
-        C --> D[Inspeção]
-        D --> E[Pagamento]
-        E --> F[Finalizado]
 
+        st.info(
+            "O SmarTrash buscará o melhor transportador "
+            "disponível considerando distância, capacidade, "
+            "horário e custo."
+        )
 
-        {fill}
-""")
+        if st.button(
+            "🚀 Encontrar melhor transportador",
+            type="primary"
+        ):
 
-    st.write("Gerador:", pedido_data["Gerador"])
-    st.write("Horário:", pedido_data["Horário Chegada"])
-    st.write("Alumínio:", pedido_data["Aluminio"], "kg")
-    st.write("Plástico:", pedido_data["Plastico"], "kg")
-    st.write("Papel:", pedido_data["Papel"], "kg")
-    st.write("Transportador:", pedido_data["Quem vai trazer"])
-    st.write("Pagamento ao Transportador: R$", pedido_data["Pagamento Transportador"])
-    st.write("Pagamento ao Gerador: R$", pedido_data["Pagamento Gerador"])
-    st.header("Fluxo do Pedido")
-    st.mermaid_chart(f"""
-    graph LR
-        A["{pedido_data['Gerador']}"] --> B["{pedido_data['Quem vai trazer']}"]
-        B --> C[asdasdasd]
-""")
+            # FUTURO:
+            # algoritmo de matching / otimização
 
+            transportador_escolhido = (
+                "Claudio Logistics"
+            )
 
+            st.session_state["propostas"].loc[
+                st.session_state["propostas"]["ID"] == proposta_id,
+                "Status"
+            ] = "Aceita"
 
+            st.session_state[
+                "logistica"
+            ] = transportador_escolhido
 
+            del st.session_state["proposta_aceita"]
+
+            st.success(
+                f"Pedido aceito! "
+                f"O SmarTrash selecionou: "
+                f"{transportador_escolhido}"
+            )
+
+            st.rerun()
